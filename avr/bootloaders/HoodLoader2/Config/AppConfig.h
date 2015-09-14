@@ -72,4 +72,9 @@ along with Hoodloader2.  If not, see <http://www.gnu.org/licenses/>.
 
 	#define PREFERRED_BOOT	BOOT_SKETCH
 //	#define PREFERRED_BOOT	BOOT_BOOTLOADER
+
+//	#define DISABLE_AUTORESET_JUMPER
+	#define JUMPER_SENSE    6
+	#define JUMPER_GND      4
+
 #endif

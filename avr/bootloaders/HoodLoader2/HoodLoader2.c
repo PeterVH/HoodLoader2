@@ -176,11 +176,39 @@ second_choice:
 	StartSketch();
 }
 
+#ifdef DISABLE_AUTORESET_JUMPER
+
+static bool IsJumperInstalled(void)
+{
+	bool ret;
+
+	// Jumper pins:
+	//  JUMPER_SENSE input, pullup
+	//  JUMPER_GND output, low
+	PORTB =  (1 << JUMPER_SENSE);
+	DDRB  =  (1 << JUMPER_GND);
+	_delay_ms(20); // discharge JUMPER_GND
+	ret = ((PINB & (1 << JUMPER_SENSE)) == 0);
+
+	// Port B, all inputs again
+	DDRB = 0;
+
+	return ret;
+}
+
+#endif
+
 static void StartSketch(void)
 {
 	// turn off leds on every startup
 	LEDs_TurnOffLEDs(LEDS_ALL_LEDS);
 
+#ifdef DISABLE_AUTORESET_JUMPER
+	// refuse to go to sketch if jumper is installed,
+	// to avoid possible driver contention
+	if (IsJumperInstalled())
+		return;
+#endif
 	// jump to beginning of application space
 	// cppcheck-suppress constStatement
 	((void(*)(void))0x0000)();
@@ -249,6 +277,14 @@ static void SetupHardware(void)
 	// compacter setup for Leds, RX, TX, Reset Line
 	ARDUINO_DDR |= LEDS_ALL_LEDS | (1 << PD3) | AVR_RESET_LINE_MASK;
 	ARDUINO_PORT |= LEDS_ALL_LEDS | (1 << 2) | AVR_RESET_LINE_MASK;
+
+#ifdef DISABLE_AUTORESET_JUMPER
+	// Jumper pins:
+	//  JUMPER_SENSE input, pullup
+	//  JUMPER_GND output, low
+	PORTB =  (1 << JUMPER_SENSE);
+	DDRB  =  (1 << JUMPER_GND);
+#endif
 }
 
 /** Event handler for the USB_ConfigurationChanged event. This configures the device's endpoints ready
@@ -347,7 +383,12 @@ void EVENT_USB_Device_ControlRequest(void)
 			Endpoint_ClearSETUP();
 			Endpoint_ClearStatusStage();
 
-			// check DTR state and reset the MCU
+#ifdef DISABLE_AUTORESET_JUMPER
+			// If jumper is in place, we don't reset the main MCU.
+			if ((PINB & (1 << JUMPER_SENSE)) == 0)
+				return;
+#endif
+			// check DTR state and reset the main MCU
 			// You could add the OUTPUT declaration here but it wont help since the pc always tries to open the serial port once.
 			// At least if the usb is connected this always results in a main MCU reset if the bootloader is executed.
 			// From my testings there is no way to avoid this. Its needed as far as I tested, no way.
@@ -355,7 +396,6 @@ void EVENT_USB_Device_ControlRequest(void)
 				AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
 			else
 				AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-
 		}
 	}
 }
