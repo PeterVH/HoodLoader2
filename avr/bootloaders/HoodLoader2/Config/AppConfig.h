@@ -59,6 +59,9 @@ along with Hoodloader2.  If not, see <http://www.gnu.org/licenses/>.
  *  \ref Sec_Options section of the application documentation.
  */
 
+#define	BOOT_SKETCH		0
+#define	BOOT_BOOTLOADER		1
+
 #ifndef _APP_CONFIG_H_
 #define _APP_CONFIG_H_
 
@@ -67,4 +70,6 @@ along with Hoodloader2.  If not, see <http://www.gnu.org/licenses/>.
 	#define NO_FLASH_BYTE_SUPPORT
 //	#define NO_LOCK_BYTE_WRITE_SUPPORT
 
+	#define PREFERRED_BOOT	BOOT_SKETCH
+//	#define PREFERRED_BOOT	BOOT_BOOTLOADER
 #endif

@@ -131,33 +131,49 @@ void Application_Jump_Check(void)
 	if (pgm_read_word(0) != 0xFFFF){
 
 		// First case: external reset, bootKey NOT in memory. We'll put the bootKey in memory, then spin
-		//  our wheels for about 750ms, then proceed to the sketch, if there is one. If, during that 750ms,
-		//  another external reset occurs, on the next pass through this decision tree, execution will fall
-		//  through to the bootloader.
+		//  our wheels for about 750ms, then proceed to the first choice boot mode. If, during that 750ms,
+		//  another external reset occurs, on the next pass through this decision tree, we will proceed to
+		//  second choice boot mode.
 		if ((mcusr_state & (1 << EXTRF))) {
 			if ((bootKeyPtrVal != MAGIC_BOOT_KEY)){
-				// set the Bootkey and give the user a few ms chance to enter Bootloader mode
+				// set the Bootkey and give the user a few ms chance to enter second choice boot mode
 				*MagicBootKeyPtr = MAGIC_BOOT_KEY;
 
 				// wait for a possible double tab (this methode takes less flash than an ISR)
 				_delay_ms(EXT_RESET_TIMEOUT_PERIOD);
 
-				// user was too slow/normal reset, start sketch now
+				// user was too slow/normal reset, got to our first choice boot mode.
 				*MagicBootKeyPtr = 0;
-				StartSketch();
-			}
+				goto first_choice;
+			} else
+				goto second_choice;
 		}
 
-		// On a power-on reset, we ALWAYS want to go to the sketch. If there is one.
+		// On a power-on reset, we go to our first choice boot mode.
 		else if ((mcusr_state & (1 << PORF)))
-			StartSketch();
+			goto first_choice;
 
 		// On a watchdog reset, if the bootKey isn't set, and there's a sketch, we should just
-		//  go straight to the sketch.
+		//  go to our first choice boot mode.
 		else if ((mcusr_state & (1 << WDRF)) && (bootKeyPtrVal != MAGIC_BOOT_KEY))
-			// If it looks like an "accidental" watchdog reset then start the sketch.
-			StartSketch();
+			// If it looks like an "accidental" watchdog reset go to our first choice boot mode
+			goto first_choice;
 	}
+	return; // No choice, must go to boot loader
+
+// Beneath this point, a sketch is available
+
+// Pressed reset once, or equivalent reset source:
+first_choice:
+	if (PREFERRED_BOOT == BOOT_SKETCH)
+		StartSketch();
+	return;
+
+// Pressed reset twice:
+second_choice:
+	if (PREFERRED_BOOT == BOOT_SKETCH)
+		return;
+	StartSketch();
 }
 
 static void StartSketch(void)
